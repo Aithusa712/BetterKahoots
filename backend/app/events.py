@@ -60,6 +60,7 @@ class EventStore:
         return events
 
     async def reset(self, session_id: str) -> None:
+
         """Clear stored events for a session and emit a reset marker."""
 
         await self.events_collection.delete_many({"session_id": session_id})
@@ -72,6 +73,7 @@ class EventStore:
         # Emit a synthetic reset event so long-polling clients know to
         # discard any derived state from the previous game.
         await self.append(session_id, {"type": "session_reset"})
+
 
 
 event_store = EventStore()

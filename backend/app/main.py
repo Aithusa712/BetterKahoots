@@ -12,7 +12,9 @@ from .schemas import (
     CreateSessionIn,
     JoinIn,
     PublicSessionOut,
+
     ResetSessionIn,
+
     StartGameIn,
 )
 
@@ -93,12 +95,14 @@ async def start(payload: StartGameIn, _: None = Depends(require_admin)):
         await controller.start(payload.session_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     return {"ok": True}
 
 
 @app.post("/api/admin/reset")
 async def reset(payload: ResetSessionIn, _: None = Depends(require_admin)):
     await controller.reset(payload.session_id)
+
     return {"ok": True}
 
 

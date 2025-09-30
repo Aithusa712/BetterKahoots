@@ -6,6 +6,7 @@ import type { ServerEvent } from '../types'
 type LoggedEvent = { seq: number; timestamp?: number; payload: ServerEvent }
 
 const DEFAULT_INTERVAL = 1000
+
 const MAX_BACKOFF_MULTIPLIER = 5
 
 async function sleep(ms: number) {
@@ -19,6 +20,7 @@ export function useEventFeed(
 ) {
   const lastSeqRef = useRef<number | null>(null)
   const handlerRef = useRef(onEvent)
+
   const intervalRef = useRef(pollIntervalMs)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -28,7 +30,9 @@ export function useEventFeed(
 
   useEffect(() => {
     lastSeqRef.current = null
+
     intervalRef.current = pollIntervalMs
+
     if (!sessionId) return
 
     let cancelled = false
@@ -37,16 +41,20 @@ export function useEventFeed(
       while (!cancelled) {
         const controller = new AbortController()
         abortRef.current = controller
+
         try {
           const params =
             lastSeqRef.current != null ? `?after=${lastSeqRef.current}` : ''
           const res = await fetch(
             `/api/session/${encodeURIComponent(sessionId)}/events${params}`,
+
             { signal: controller.signal },
+
           )
           if (res.ok) {
             const data = await res.json()
             const events: LoggedEvent[] = data.events ?? []
+
             if (events.length) {
               intervalRef.current = pollIntervalMs
             } else {
@@ -55,12 +63,14 @@ export function useEventFeed(
                 intervalRef.current + pollIntervalMs,
               )
             }
+
             for (const evt of events) {
               lastSeqRef.current = evt.seq
               if (evt.payload) {
                 handlerRef.current(evt.payload)
               }
             }
+
           } else {
             intervalRef.current = Math.min(
               pollIntervalMs * MAX_BACKOFF_MULTIPLIER,
@@ -76,6 +86,7 @@ export function useEventFeed(
         }
 
         await sleep(intervalRef.current)
+
       }
     }
 
@@ -83,7 +94,9 @@ export function useEventFeed(
 
     return () => {
       cancelled = true
+
       abortRef.current?.abort()
+
     }
   }, [sessionId, pollIntervalMs])
 }
