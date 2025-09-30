@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createOrGetSession, join, submitAnswer } from '../api'
 import { useEventFeed } from '../hooks/useEventFeed'
 import TimerBar from '../components/TimerBar'
@@ -20,6 +20,8 @@ export default function UserPage() {
   const [revealIndex, setRevealIndex] = useState<number | null>(null)
   const [scoreboard, setScoreboard] = useState<Player[] | null>(null)
   const [finalists, setFinalists] = useState<string[] | null>(null)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const scoreboardTimeoutRef = useRef<number | null>(null)
 
 
   useEffect(() => { createOrGetSession(sessionId) }, [sessionId])
@@ -34,6 +36,12 @@ export default function UserPage() {
       setRevealIndex(null)
       setScoreboard(null)
       setFinalists(null)
+
+      setSelectedIndex(null)
+      if (scoreboardTimeoutRef.current) {
+        window.clearTimeout(scoreboardTimeoutRef.current)
+        scoreboardTimeoutRef.current = null
+      }
       return
     }
 
@@ -43,6 +51,13 @@ export default function UserPage() {
       setDeadlineTs(evt.deadline_ts)
       setRevealIndex(null)
       setScoreboard(null)
+
+      setSelectedIndex(null)
+      if (scoreboardTimeoutRef.current) {
+        window.clearTimeout(scoreboardTimeoutRef.current)
+        scoreboardTimeoutRef.current = null
+      }
+
       if (!evt.is_bonus) setFinalists(null)
     }
     if (evt.type === 'reveal') {
@@ -51,11 +66,27 @@ export default function UserPage() {
     if (evt.type === 'scoreboard') {
       setScoreboard(evt.leaderboard)
       setPlayers(evt.leaderboard)
+
+      if (scoreboardTimeoutRef.current) {
+        window.clearTimeout(scoreboardTimeoutRef.current)
+      }
+      scoreboardTimeoutRef.current = window.setTimeout(() => {
+        setScoreboard(null)
+        scoreboardTimeoutRef.current = null
+      }, evt.duration * 1000)
+
     }
     if (evt.type === 'tiebreak_start') setFinalists(evt.finalist_ids)
     if (evt.type === 'game_over') {
       setScoreboard(evt.leaderboard)
       setPlayers(evt.leaderboard)
+
+      setSelectedIndex(null)
+      if (scoreboardTimeoutRef.current) {
+        window.clearTimeout(scoreboardTimeoutRef.current)
+        scoreboardTimeoutRef.current = null
+      }
+
     }
   }
   useEventFeed(sessionId, onEvent)
@@ -76,9 +107,19 @@ export default function UserPage() {
 
 
   const pick = async (i: number) => {
-    if (!question || !player) return
+    if (!question || !player || !canAnswer) return
+    setSelectedIndex(i)
     try { await submitAnswer(sessionId, player.id, question.id, i) } catch { }
   }
+
+  useEffect(() => {
+    return () => {
+      if (scoreboardTimeoutRef.current) {
+        window.clearTimeout(scoreboardTimeoutRef.current)
+        scoreboardTimeoutRef.current = null
+      }
+    }
+  }, [])
 
 
   return (
@@ -102,7 +143,13 @@ export default function UserPage() {
               <div>
                 {deadlineTs && <TimerBar deadlineTs={deadlineTs} />}
                 <h2>{question.text}</h2>
-                <AnswerButtons options={question.options} locked={!canAnswer} revealIndex={revealIndex} onPick={pick} />
+                <AnswerButtons
+                  options={question.options}
+                  locked={!canAnswer}
+                  revealIndex={revealIndex}
+                  selectedIndex={selectedIndex}
+                  onPick={pick}
+                />
               </div>
             ) : (
               <p>Waiting for the host to start…</p>

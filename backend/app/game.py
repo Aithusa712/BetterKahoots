@@ -279,7 +279,6 @@ class GameController:
             p.is_tied_finalist = False
         await self.save_session(s)
 
-
         leaderboard = sort_leaderboard([p.model_dump() for p in s.players])
 
         await self._publish_players(session_id, s.players)
