@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createOrGetSession, join, submitAnswer } from '../api'
-import { useSocket } from '../hooks/useSocket'
+import { useEventFeed } from '../hooks/useEventFeed'
 import TimerBar from '../components/TimerBar'
 import AnswerButtons from '../components/AnswerButtons'
 import Leaderboard from '../components/Leaderboard'
@@ -25,22 +25,29 @@ export default function UserPage() {
   useEffect(() => { createOrGetSession(sessionId) }, [sessionId])
 
 
-  const onSocket = (evt: ServerEvent) => {
+  const onEvent = (evt: ServerEvent) => {
     if (evt.type === 'players_update') setPlayers(evt.players)
     if (evt.type === 'question') {
       setQuestion(evt.question)
       setDeadlineTs(evt.deadline_ts)
       setRevealIndex(null)
       setScoreboard(null)
+      if (!evt.is_bonus) setFinalists(null)
     }
     if (evt.type === 'reveal') {
       setRevealIndex(evt.correct_index)
     }
-    if (evt.type === 'scoreboard') setScoreboard(evt.leaderboard)
+    if (evt.type === 'scoreboard') {
+      setScoreboard(evt.leaderboard)
+      setPlayers(evt.leaderboard)
+    }
     if (evt.type === 'tiebreak_start') setFinalists(evt.finalist_ids)
-    if (evt.type === 'game_over') setScoreboard(evt.leaderboard)
+    if (evt.type === 'game_over') {
+      setScoreboard(evt.leaderboard)
+      setPlayers(evt.leaderboard)
+    }
   }
-  useSocket(sessionId, onSocket)
+  useEventFeed(sessionId, onEvent)
 
 
   const canAnswer = useMemo(() => {

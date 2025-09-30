@@ -1,34 +1,11 @@
 from __future__ import annotations
 import asyncio
-import json
 from typing import Dict, List
+
 from .db import db
-from .models import Session, Player, Question
+from .events import event_store
+from .models import Player, Question, Session
 from .utils import now_ts, sort_leaderboard
-
-
-class ConnectionManager:
-    def __init__(self):
-        self.active: Dict[str, List] = {}  # session_id -> [websocket,...]
-
-    async def connect(self, session_id: str, websocket):
-        await websocket.accept()
-        self.active.setdefault(session_id, []).append(websocket)
-
-    def disconnect(self, session_id: str, websocket):
-        if session_id in self.active and websocket in self.active[session_id]:
-            self.active[session_id].remove(websocket)
-
-    async def broadcast(self, session_id: str, message: dict):
-        for ws in list(self.active.get(session_id, [])):
-            try:
-                await ws.send_text(json.dumps(message))
-            except Exception:
-                # drop dead sockets
-                self.disconnect(session_id, ws)
-
-
-manager = ConnectionManager()
 
 
 class GameController:
@@ -65,10 +42,7 @@ class GameController:
             s.players.append(p)
             await self.save_session(s)
 
-            await manager.broadcast(session_id, {
-                "type": "players_update",
-                "players": [pl.model_dump() for pl in s.players]
-            })
+            await self._publish_players(session_id, s.players)
 
             return p
 
@@ -102,14 +76,17 @@ class GameController:
         s.state = "playing" if not is_bonus else "tiebreak"
         await self.save_session(s)
 
-        await manager.broadcast(session_id, {
-            "type": "question",
-            "is_bonus": is_bonus,
-            "question": q.model_dump(),
-            "question_index": s.current_question_idx,
-            "total_questions": len(s.questions),
-            "deadline_ts": deadline
-        })
+        await event_store.append(
+            session_id,
+            {
+                "type": "question",
+                "is_bonus": is_bonus,
+                "question": q.model_dump(),
+                "question_index": s.current_question_idx,
+                "total_questions": len(s.questions),
+                "deadline_ts": deadline,
+            },
+        )
 
         # collect answers during window
         await asyncio.sleep(QDUR)
@@ -182,23 +159,36 @@ class GameController:
             if pid in pid_to_player:
                 pid_to_player[pid].score += bonus
 
+        # mark the session state so late joiners pick up the reveal
+        s.state = "reveal"
+        s.question_deadline_ts = None
         await self.save_session(s)
 
         # broadcast reveal
-        await manager.broadcast(session_id, {
-            "type": "reveal",
-            "question_id": q.id,
-            "correct_index": q.correct_index,
-            "awards": awards
-        })
+        await event_store.append(
+            session_id,
+            {
+                "type": "reveal",
+                "question_id": q.id,
+                "correct_index": q.correct_index,
+                "awards": awards,
+            },
+        )
 
         # then scoreboard
-        leaderboard = [p.model_dump() for p in sort_leaderboard([p.model_dump() for p in s.players])]
-        await manager.broadcast(session_id, {
-            "type": "scoreboard",
-            "duration": 5,
-            "leaderboard": leaderboard
-        })
+        players_data = [p.model_dump() for p in s.players]
+        leaderboard = sort_leaderboard(players_data)
+        s.state = "scoreboard"
+        await self.save_session(s)
+        await event_store.append(
+            session_id,
+            {
+                "type": "scoreboard",
+                "duration": 5,
+                "leaderboard": leaderboard,
+            },
+        )
+        await self._publish_players(session_id, s.players)
 
     async def _maybe_tiebreak_or_finish(self, session_id: str):
         s = await self.get_session(session_id)
@@ -224,10 +214,14 @@ class GameController:
         await self.save_session(s)
 
         # run bonus question for finalists only
-        await manager.broadcast(session_id, {
-            "type": "tiebreak_start",
-            "finalist_ids": [f.id for f in finalists]
-        })
+        await self._publish_players(session_id, s.players)
+        await event_store.append(
+            session_id,
+            {
+                "type": "tiebreak_start",
+                "finalist_ids": [f.id for f in finalists],
+            },
+        )
         asyncio.create_task(self._run_question(session_id, is_bonus=True))
 
     async def _finish(self, session_id: str):
@@ -238,11 +232,25 @@ class GameController:
         s.state = "finished"
         await self.save_session(s)
 
-        leaderboard = [p.model_dump() for p in sort_leaderboard([p.model_dump() for p in s.players])]
-        await manager.broadcast(session_id, {
-            "type": "game_over",
-            "leaderboard": leaderboard
-        })
+        leaderboard = sort_leaderboard([p.model_dump() for p in s.players])
+        await self._publish_players(session_id, s.players)
+        await event_store.append(
+            session_id,
+            {
+                "type": "game_over",
+                "leaderboard": leaderboard,
+            },
+        )
+
+
+    async def _publish_players(self, session_id: str, players: List[Player]):
+        await event_store.append(
+            session_id,
+            {
+                "type": "players_update",
+                "players": [pl.model_dump() for pl in players],
+            },
+        )
 
 
 controller = GameController()
