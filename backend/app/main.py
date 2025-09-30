@@ -73,7 +73,10 @@ async def get_session(session_id: str):
 
 @app.post("/api/join")
 async def join(payload: JoinIn):
-    p = await controller.join(payload.session_id, payload.username)
+    try:
+        p = await controller.join(payload.session_id, payload.username)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"player": p.model_dump()}
 
 
@@ -85,7 +88,10 @@ async def upsert_questions(payload: AdminUpsertQuestionsIn, _: None = Depends(re
 
 @app.post("/api/admin/start")
 async def start(payload: StartGameIn, _: None = Depends(require_admin)):
-    await controller.start(payload.session_id)
+    try:
+        await controller.start(payload.session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True}
 
 

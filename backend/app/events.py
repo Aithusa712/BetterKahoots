@@ -60,10 +60,20 @@ class EventStore:
         return events
 
     async def reset(self, session_id: str) -> None:
-        """Clear stored events and counters for a session."""
+
+        """Clear stored events for a session and emit a reset marker."""
 
         await self.events_collection.delete_many({"session_id": session_id})
-        await self.counters_collection.delete_one({"_id": session_id})
+
+        # Ensure a counter document exists so sequence numbers keep increasing
+        counter_doc = await self.counters_collection.find_one({"_id": session_id})
+        if counter_doc is None:
+            await self.counters_collection.insert_one({"_id": session_id, "seq": 0})
+
+        # Emit a synthetic reset event so long-polling clients know to
+        # discard any derived state from the previous game.
+        await self.append(session_id, {"type": "session_reset"})
+
 
 
 event_store = EventStore()
