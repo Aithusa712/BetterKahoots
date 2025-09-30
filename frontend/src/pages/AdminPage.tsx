@@ -25,10 +25,12 @@ export default function AdminPage() {
     })();
   }, [sessionId]);
   useEventFeed(sessionId, (evt: ServerEvent) => {
+
     if (evt.type === 'session_reset') {
       setPlayers([])
       return
     }
+
     if (evt.type === 'players_update') setPlayers(evt.players)
   })
   const saveQuestions = async () => {

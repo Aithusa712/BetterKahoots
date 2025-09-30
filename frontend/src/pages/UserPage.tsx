@@ -26,6 +26,7 @@ export default function UserPage() {
 
 
   const onEvent = (evt: ServerEvent) => {
+
     if (evt.type === 'session_reset') {
       setPlayers(prev => prev.map(p => ({ ...p, score: 0, is_tied_finalist: false })))
       setQuestion(null)
@@ -35,6 +36,7 @@ export default function UserPage() {
       setFinalists(null)
       return
     }
+
     if (evt.type === 'players_update') setPlayers(evt.players)
     if (evt.type === 'question') {
       setQuestion(evt.question)
