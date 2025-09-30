@@ -28,6 +28,13 @@ return res.json()
 }
 
 
+export async function resetSession(session_id: string, adminKey: string) {
+const res = await fetch(`/api/admin/reset`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey }, body: JSON.stringify({ session_id }) })
+if (!res.ok) throw new Error('Failed to reset session')
+return res.json()
+}
+
+
 export async function submitAnswer(session_id: string, player_id: string, question_id: string, option_index: number) {
 const res = await fetch(`/api/answer`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id, player_id, question_id, option_index }) })
 if (!res.ok) throw new Error('Failed to submit answer')

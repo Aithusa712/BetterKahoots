@@ -12,7 +12,6 @@ CORRECT_BASE_POINTS = 10
 BONUS_POINTS = [5, 4, 3, 2, 1]
 
 
-
 class GameController:
     def __init__(self):
         self.locks: Dict[str, asyncio.Lock] = {}
@@ -85,6 +84,26 @@ class GameController:
             # Broadcast the fresh lobby state so players see zeroed scores.
             await self._publish_players(session_id, s.players)
             asyncio.create_task(self._run_question(session_id))
+
+    async def reset(self, session_id: str):
+        async with self._lock(session_id):
+            s = await self.get_session(session_id) or Session(id=session_id)
+
+            # Clear any stored answers and return the session to an idle lobby state.
+            await db.answers.delete_many({"session_id": session_id})
+
+            s.state = "lobby"
+            s.current_question_idx = -1
+            s.question_deadline_ts = None
+            s.players = []
+
+            await self.save_session(s)
+
+            # Reset the event log so clients drop derived state.
+            await event_store.reset(session_id)
+
+            # Publish the empty roster so admin/player views refresh immediately.
+            await self._publish_players(session_id, [])
 
     async def _run_question(self, session_id: str, is_bonus: bool = False):
         QDUR, SDUR = (30, 5) if not is_bonus else (30, 5)

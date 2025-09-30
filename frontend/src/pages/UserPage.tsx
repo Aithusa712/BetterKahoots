@@ -159,7 +159,7 @@ export default function UserPage() {
       </div>
 
 
-      {scoreboard && <Leaderboard players={scoreboard} />}
+      {player && scoreboard && <Leaderboard players={scoreboard} />}
     </div>
   )
 }
