@@ -12,6 +12,7 @@ CORRECT_BASE_POINTS = 10
 BONUS_POINTS = [5, 4, 3, 2, 1]
 
 
+
 class GameController:
     def __init__(self):
         self.locks: Dict[str, asyncio.Lock] = {}
@@ -218,10 +219,12 @@ class GameController:
         )
 
         # then scoreboard
+
         players_data = [p.model_dump() for p in s.players]
         leaderboard = sort_leaderboard(players_data)
         s.state = "scoreboard"
         await self.save_session(s)
+
         await event_store.append(
             session_id,
             {
@@ -277,6 +280,7 @@ class GameController:
         await self.save_session(s)
 
         leaderboard = sort_leaderboard([p.model_dump() for p in s.players])
+
         await self._publish_players(session_id, s.players)
         await event_store.append(
             session_id,
