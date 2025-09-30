@@ -8,6 +8,10 @@ from .models import Player, Question, Session
 from .utils import now_ts, sort_leaderboard
 
 
+CORRECT_BASE_POINTS = 10
+BONUS_POINTS = [5, 4, 3, 2, 1]
+
+
 class GameController:
     def __init__(self):
         self.locks: Dict[str, asyncio.Lock] = {}
@@ -32,6 +36,9 @@ class GameController:
             s = await self.get_session(session_id)
             if not s:
                 s = Session(id=session_id)
+
+            if len(s.players) >= 30:
+                raise ValueError("Session is full (30 players max)")
 
             pid = username.lower().replace(" ", "-")
             if any(p.id == pid for p in s.players):
@@ -59,9 +66,23 @@ class GameController:
             if not s or len(s.players) < 3 or not s.questions or not s.bonus_question:
                 raise ValueError("Cannot start: need >=3 players, questions and a bonus question")
 
+            # Reset per-game state so subsequent runs start from a clean slate.
+            for p in s.players:
+                p.score = 0
+                p.is_tied_finalist = False
+
             s.state = "playing"
             s.current_question_idx = 0
+            s.question_deadline_ts = None
+
+            # Drop historical answers and event history for the new game.
+            await db.answers.delete_many({"session_id": session_id})
+            await event_store.reset(session_id)
+
             await self.save_session(s)
+
+            # Broadcast the fresh lobby state so players see zeroed scores.
+            await self._publish_players(session_id, s.players)
             asyncio.create_task(self._run_question(session_id))
 
     async def _run_question(self, session_id: str, is_bonus: bool = False):
@@ -123,14 +144,29 @@ class GameController:
         if not q or q.id != question_id:
             return False
 
+        # only finalists may answer during the tiebreak round
+        if s.state == "tiebreak":
+            finalist_ids = [p.id for p in s.players if p.is_tied_finalist]
+            if player_id not in finalist_ids:
+                return False
+
+        existing = await db.answers.find_one({
+            "session_id": session_id,
+            "player_id": player_id,
+            "question_id": question_id,
+        })
+        if existing:
+            return False
+
         is_correct = (option_index == q.correct_index)
+        ts = now_ts()
         await db.answers.insert_one({
             "session_id": session_id,
             "player_id": player_id,
             "question_id": question_id,
             "option_index": option_index,
             "is_correct": is_correct,
-            "timestamp": now_ts()
+            "timestamp": ts
         })
 
         return is_correct
@@ -143,11 +179,17 @@ class GameController:
         correct = [a for a in answers if a.get("is_correct")]
         correct.sort(key=lambda a: a["timestamp"])  # earliest first
 
-        # bonuses for first 5 correct
-        bonuses = [5, 4, 3, 2, 1]
         awards: dict[str, int] = {}
-        for i, a in enumerate(correct[:5]):
-            awards[a["player_id"]] = bonuses[i]
+
+        # base points for everyone answering correctly
+        for ans in correct:
+            pid = ans["player_id"]
+            awards[pid] = awards.get(pid, 0) + CORRECT_BASE_POINTS
+
+        # bonuses for the first 5 correct answers
+        for i, ans in enumerate(correct[:5]):
+            pid = ans["player_id"]
+            awards[pid] = awards.get(pid, 0) + BONUS_POINTS[i]
 
         # apply scores
         s = await self.get_session(session_id)
@@ -230,6 +272,8 @@ class GameController:
             return
 
         s.state = "finished"
+        for p in s.players:
+            p.is_tied_finalist = False
         await self.save_session(s)
 
         leaderboard = sort_leaderboard([p.model_dump() for p in s.players])
