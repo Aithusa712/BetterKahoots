@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from motor.motor_asyncio import AsyncIOMotorClient
 from functools import lru_cache
@@ -10,6 +12,7 @@ class Settings(BaseSettings):
     MONGO_DB: str = "betterkahoots"
     ADMIN_KEY: str = "change-me"
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8080"
+    CORS_ORIGIN_REGEX: Optional[str] = r"https://.*\\.azurestaticapps\\.net"
 
 
 @lru_cache

@@ -28,6 +28,7 @@ The sections below outline the required configuration.
    - `MONGO_DB=betterkahoots` or your chosen database name.
    - `ADMIN_KEY` – the value used to protect admin routes.
    - `CORS_ORIGINS` – include your SWA hostname (for example `https://<your-app>.azurestaticapps.net`).
+   - `CORS_ORIGIN_REGEX` (optional) – override the default regex (`https://.*.azurestaticapps.net`) if you host the frontend on a different domain pattern.
 
 The backend already honours the `PORT` variable and exposes 8000 in the Dockerfile, so no
 further code changes are required for App Service.
