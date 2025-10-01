@@ -1,18 +1,11 @@
 version: "3.9"
 services:
-  mongo:
-    image: mongo:7
-    restart: unless-stopped
-
-
   backend:
     image: ${BACKEND_IMAGE:-betterkahoots-backend:latest}
     restart: unless-stopped
     env_file: .env
-
-
-  frontend:
-    image: ${FRONTEND_IMAGE:-betterkahoots-frontend:latest}
-    restart: unless-stopped
+    environment:
+      - PORT=8000
     ports:
-      - "80:80"
+      - "8000:8000"
+
