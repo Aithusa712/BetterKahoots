@@ -1,35 +1,10 @@
 version: "3.9"
 services:
-  mongo:
-    image: mongo:7
-    container_name: bk_mongo
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-
-
   backend:
-    build: ./backend
-    container_name: bk_backend
+    image: ${BACKEND_IMAGE:-betterkahoots-backend:latest}
     restart: unless-stopped
     env_file: .env
-    depends_on:
-      - mongo
+    environment:
+      - PORT=8000
     ports:
       - "8000:8000"
-
-
-  frontend:
-    build: ./frontend
-    container_name: bk_frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
-    ports:
-      - "8080:80"
-
-
-volumes:
-  mongo_data:

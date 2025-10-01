@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 
+import { apiUrl } from '../config'
+
 import type { ServerEvent } from '../types'
 
 
@@ -45,10 +47,8 @@ export function useEventFeed(
           const params =
             lastSeqRef.current != null ? `?after=${lastSeqRef.current}` : ''
           const res = await fetch(
-            `/api/session/${encodeURIComponent(sessionId)}/events${params}`,
-
+            apiUrl(`/api/session/${encodeURIComponent(sessionId)}/events${params}`),
             { signal: controller.signal },
-
           )
           if (res.ok) {
             const data = await res.json()
