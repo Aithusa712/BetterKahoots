@@ -23,7 +23,25 @@ class EventStore:
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )
-        seq = counter_doc["seq"]
+
+        if not counter_doc:
+            # Some Mongo-compatible providers (for example Azure Cosmos DB)
+            # complete the upsert but return ``None`` instead of the updated
+            # document. Fall back to a direct lookup so we still obtain the
+            # sequence number.
+            counter_doc = await self.counters_collection.find_one({"_id": session_id})
+
+        if not counter_doc or "seq" not in counter_doc:
+            # As a last resort ensure a counter document exists so we can
+            # continue emitting events without crashing the request handler.
+            counter_doc = {"seq": 1}
+            await self.counters_collection.update_one(
+                {"_id": session_id},
+                {"$set": counter_doc},
+                upsert=True,
+            )
+
+        seq = int(counter_doc.get("seq", 1))
 
         await self.events_collection.insert_one(
             {
