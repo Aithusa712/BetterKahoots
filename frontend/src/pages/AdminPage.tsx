@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createOrGetSession, resetSession, startGame, upsertQuestions } from '../api'
+
 import { useEventFeed } from '../hooks/useEventFeed'
 import type { Player, Question, ServerEvent } from '../types'
 const DEFAULT_SESSION = 'demo'
@@ -25,10 +26,12 @@ export default function AdminPage() {
     })();
   }, [sessionId]);
   useEventFeed(sessionId, (evt: ServerEvent) => {
+
     if (evt.type === 'session_reset') {
       setPlayers([])
       return
     }
+
     if (evt.type === 'players_update') setPlayers(evt.players)
   })
   const saveQuestions = async () => {

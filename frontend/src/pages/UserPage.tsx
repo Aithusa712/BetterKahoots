@@ -28,6 +28,7 @@ export default function UserPage() {
 
 
   const onEvent = (evt: ServerEvent) => {
+
     if (evt.type === 'session_reset') {
       setPlayers(prev => prev.map(p => ({ ...p, score: 0, is_tied_finalist: false })))
       setQuestion(null)
@@ -35,6 +36,7 @@ export default function UserPage() {
       setRevealIndex(null)
       setScoreboard(null)
       setFinalists(null)
+
       setSelectedIndex(null)
       if (scoreboardTimeoutRef.current) {
         window.clearTimeout(scoreboardTimeoutRef.current)
@@ -42,17 +44,20 @@ export default function UserPage() {
       }
       return
     }
+
     if (evt.type === 'players_update') setPlayers(evt.players)
     if (evt.type === 'question') {
       setQuestion(evt.question)
       setDeadlineTs(evt.deadline_ts)
       setRevealIndex(null)
       setScoreboard(null)
+
       setSelectedIndex(null)
       if (scoreboardTimeoutRef.current) {
         window.clearTimeout(scoreboardTimeoutRef.current)
         scoreboardTimeoutRef.current = null
       }
+
       if (!evt.is_bonus) setFinalists(null)
     }
     if (evt.type === 'reveal') {
@@ -61,6 +66,7 @@ export default function UserPage() {
     if (evt.type === 'scoreboard') {
       setScoreboard(evt.leaderboard)
       setPlayers(evt.leaderboard)
+
       if (scoreboardTimeoutRef.current) {
         window.clearTimeout(scoreboardTimeoutRef.current)
       }
@@ -68,16 +74,19 @@ export default function UserPage() {
         setScoreboard(null)
         scoreboardTimeoutRef.current = null
       }, evt.duration * 1000)
+
     }
     if (evt.type === 'tiebreak_start') setFinalists(evt.finalist_ids)
     if (evt.type === 'game_over') {
       setScoreboard(evt.leaderboard)
       setPlayers(evt.leaderboard)
+
       setSelectedIndex(null)
       if (scoreboardTimeoutRef.current) {
         window.clearTimeout(scoreboardTimeoutRef.current)
         scoreboardTimeoutRef.current = null
       }
+
     }
   }
   useEventFeed(sessionId, onEvent)
