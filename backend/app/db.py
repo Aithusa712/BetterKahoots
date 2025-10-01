@@ -5,6 +5,7 @@ try:
 except ImportError:  # pragma: no cover - fallback when certifi is not installed
     certifi = None
 
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from motor.motor_asyncio import AsyncIOMotorClient
 from functools import lru_cache
@@ -36,6 +37,7 @@ def _client_kwargs(settings: Settings) -> Dict[str, Any]:
         kwargs["tlsCAFile"] = settings.MONGO_TLS_CA_FILE
     elif certifi is not None:
         kwargs["tlsCAFile"] = certifi.where()
+
     if settings.MONGO_TLS_ALLOW_INVALID_CERTS:
         kwargs["tlsAllowInvalidCertificates"] = settings.MONGO_TLS_ALLOW_INVALID_CERTS
     return kwargs
