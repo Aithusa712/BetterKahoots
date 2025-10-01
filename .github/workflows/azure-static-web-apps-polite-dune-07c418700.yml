@@ -1,62 +1,62 @@
-# .github/workflows/hello.yml
-name: Hello CI
-
-on: [push, workflow_dispatch]
-
-jobs:
-  hello:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "GitHub Actions is working ✅"
-
-
-# name: Deploy Frontend to Azure Static Web Apps
+# # .github/workflows/hello.yml
+# name: Hello CI
 #
-# on:
-#   push:
-#     branches: [ main ]
-#     paths:
-#       - 'frontend/**'
-#       - '.github/workflows/azure-static-web-apps.yml'
-#   workflow_dispatch:
-#
-# permissions:
-#   contents: read
-#   id-token: write
+# on: [push, workflow_dispatch]
 #
 # jobs:
-#   build_and_deploy:
+#   hello:
 #     runs-on: ubuntu-latest
-#
 #     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v4
-#
-#       - name: Use Node 20 (matches Vite/React Router requirements)
-#         uses: actions/setup-node@v4
-#         with:
-#           node-version: '20.19.0'
-#           cache: 'npm'
-#           cache-dependency-path: frontend/package-lock.json
-#
-#       - name: Install dependencies
-#         working-directory: frontend
-#         run: npm ci
-#
-#       - name: Build
-#         working-directory: frontend
-#         env:
-#           # Point the SPA at your App Service backend (set this in SWA secrets UI too)
-#           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-#         run: npm run build
-#
-#       - name: Deploy to Azure Static Web Apps
-#         uses: Azure/static-web-apps-deploy@v1
-#         with:
-#           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-#           app_location: frontend
-#           app_artifact_location: dist   # Vite outputs to dist (not build)
-#           skip_app_build: true          # we already built above
+#       - run: echo "GitHub Actions is working ✅"
+
+
+name: Deploy Frontend to Azure Static Web Apps
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/azure-static-web-apps.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 20 (matches Vite/React Router requirements)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        env:
+          # Point the SPA at your App Service backend (set this in SWA secrets UI too)
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: npm run build
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          app_location: frontend
+          app_artifact_location: dist   # Vite outputs to dist (not build)
+          skip_app_build: true          # we already built above
 
 
 # name: Azure Static Web Apps CI/CD
