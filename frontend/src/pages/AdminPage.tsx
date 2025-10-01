@@ -16,6 +16,7 @@ import { alpha, useTheme } from '@mui/material/styles'
 import { createOrGetSession, resetSession, startGame, upsertQuestions } from '../api'
 import { useEventFeed } from '../hooks/useEventFeed'
 import type { Player, Question, ServerEvent } from '../types'
+import { ADMIN_KEY_STORAGE_KEY } from '../constants'
 
 
 const DEFAULT_SESSION = 'demo'
@@ -32,7 +33,10 @@ type StatusMessage = { text: string; tone: 'success' | 'error' | 'info' }
 export default function AdminPage() {
   const theme = useTheme()
   const [sessionId, setSessionId] = useState(DEFAULT_SESSION)
-  const [adminKey, setAdminKey] = useState('')
+  const [adminKey, setAdminKey] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem(ADMIN_KEY_STORAGE_KEY) ?? ''
+  })
   const [players, setPlayers] = useState<Player[]>([])
   const [questions, setQuestions] = useState<Question[]>([emptyQ('q1')])
   const [bonus, setBonus] = useState<Question>(emptyQ('bonus'))
@@ -52,6 +56,15 @@ export default function AdminPage() {
     }
     if (evt.type === 'players_update') setPlayers(evt.players)
   })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (adminKey) {
+      localStorage.setItem(ADMIN_KEY_STORAGE_KEY, adminKey)
+    } else {
+      localStorage.removeItem(ADMIN_KEY_STORAGE_KEY)
+    }
+  }, [adminKey])
 
   const upsertStatus = (text: string, tone: StatusMessage['tone']) => setStatus({ text, tone })
 
