@@ -28,7 +28,7 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: index.docker.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_3F90403246264E5FB93E24FD5DADE2E0 }}/kimandrew712/betterkahoots-backend:${{ github.sha }}
+          tags: env.IMAGE
           file: ./backend/Dockerfile
 
   deploy:
@@ -46,4 +46,4 @@ jobs:
           app-name: 'betterkahoots'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_79BAAB841DCA4B31B1126CB9E1F428C6 }}
-          images: 'index.docker.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_3F90403246264E5FB93E24FD5DADE2E0  }}/kimandrew712/betterkahoots-backend:${{ github.sha }}'
+          images: 'index.docker.io/${{ env.IMAGE }}'
