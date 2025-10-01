@@ -1,159 +1,340 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Container,
+  Divider,
+  Grid,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { alpha, useTheme } from '@mui/material/styles'
 import { createOrGetSession, resetSession, startGame, upsertQuestions } from '../api'
-
 import { useEventFeed } from '../hooks/useEventFeed'
 import type { Player, Question, ServerEvent } from '../types'
+
+
 const DEFAULT_SESSION = 'demo'
+
+
 function emptyQ(id: string): Question {
-  return {
-    id, text: '', options: ['',
-      '', '', ''], correct_index: 0
-  }
+  return { id, text: '', options: ['', '', '', ''], correct_index: 0 }
 }
+
+
+type StatusMessage = { text: string; tone: 'success' | 'error' | 'info' }
+
+
 export default function AdminPage() {
+  const theme = useTheme()
   const [sessionId, setSessionId] = useState(DEFAULT_SESSION)
   const [adminKey, setAdminKey] = useState('')
   const [players, setPlayers] = useState<Player[]>([])
-
   const [questions, setQuestions] = useState<Question[]>([emptyQ('q1')])
   const [bonus, setBonus] = useState<Question>(emptyQ('bonus'))
-  const [status, setStatus] = useState<string>('')
+  const [status, setStatus] = useState<StatusMessage | null>(null)
+
   useEffect(() => {
     (async () => {
-      const s = await createOrGetSession(sessionId);
-      // s includes the current players list
-      setPlayers(s.players);
-    })();
-  }, [sessionId]);
-  useEventFeed(sessionId, (evt: ServerEvent) => {
+      const s = await createOrGetSession(sessionId)
+      setPlayers(s.players)
+    })()
+  }, [sessionId])
 
+  useEventFeed(sessionId, (evt: ServerEvent) => {
     if (evt.type === 'session_reset') {
       setPlayers([])
       return
     }
-
     if (evt.type === 'players_update') setPlayers(evt.players)
   })
+
+  const upsertStatus = (text: string, tone: StatusMessage['tone']) => setStatus({ text, tone })
+
   const saveQuestions = async () => {
-    // simple validation
-    const valid = questions.every(q => q.text.trim() &&
-      q.options.every(o => o.trim())) && bonus.text.trim() &&
+    const allFilled =
+      questions.every(q => q.text.trim() && q.options.every(o => o.trim())) &&
+      bonus.text.trim() &&
       bonus.options.every(o => o.trim())
-    if (!valid) {
-      setStatus('Please fill all question texts and options.');
+
+    if (!allFilled) {
+      upsertStatus('Please fill in every question, option, and bonus prompt.', 'info')
       return
     }
+
     try {
       await upsertQuestions(sessionId, questions, bonus, adminKey)
-      setStatus('Questions saved.')
-    } catch (e) {
-      setStatus('Failed to save questions — check admin key.')
+      upsertStatus('Questions saved successfully.', 'success')
+    } catch {
+      upsertStatus('Failed to save questions — check your admin key.', 'error')
     }
   }
-  const canStart = players.length >= 3 && questions.length > 0 &&
-    questions.every(q => q.text && q.options.every(Boolean)) && bonus.text &&
+
+  const canStart =
+    players.length >= 3 &&
+    questions.length > 0 &&
+    questions.every(q => q.text && q.options.every(Boolean)) &&
+    bonus.text &&
     bonus.options.every(Boolean)
+
   const onStart = async () => {
-    try { await startGame(sessionId, adminKey); setStatus('Game started!') }
-    catch { setStatus('Start failed — check admin key and requirements.') }
+    try {
+      await startGame(sessionId, adminKey)
+      upsertStatus('Game launched — good luck to your players!', 'success')
+    } catch {
+      upsertStatus('Start failed — confirm your admin key and prerequisites.', 'error')
+    }
   }
+
   const onReset = async () => {
     try {
       await resetSession(sessionId, adminKey)
       setPlayers([])
-      setStatus('Session reset.')
+      upsertStatus('Session reset — players can join again.', 'success')
     } catch {
-      setStatus('Reset failed — check admin key.')
+      upsertStatus('Reset failed — check the admin key.', 'error')
     }
   }
-  const addQuestion = () => setQuestions(prev => [...prev, emptyQ('q' +
-    (prev.length + 1))])
-  return (
-    <div className="container">
-      <div className="card">
-        <h1>Admin · BetterKahoots</h1>
-        <div className="grid" style={{
-          gridTemplateColumns: '1fr 1fr',
-          alignItems: 'end'
-        }}>
-          <label>Session ID
-            <input className="input" value={sessionId}
-              onChange={e => setSessionId(e.target.value)} />
-          </label>
-          <label>Admin Key
-            <input className="input" value={adminKey}
-              onChange={e => setAdminKey(e.target.value)} />
-          </label>
-        </div>
 
-        <p>Players joined: <strong>{players.length}</strong></p>
-        <h2>Questions</h2>
-        {questions.map((q, idx) => (
-          <div key={q.id} className="card" style={{ marginBottom: '1rem' }}>
-            <label>Question {idx + 1}
-              <input className="input" value={q.text} onChange={e => {
-                const v = e.target.value;
-                setQuestions(s => s.map(qq => qq.id === q.id ? { ...qq, text: v } : qq))
-              }} />
-            </label>
-            <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-              {q.options.map((opt, i) => (
-                <label key={i}>Option {i + 1}
-                  <input className="input" value={opt} onChange={e => {
-                    const v = e.target.value;
-                    setQuestions(s => s.map(qq => qq.id === q.id ? {
-                      ...qq, options:
-                        qq.options.map((oo, j) => j === i ? v : oo)
-                    } : qq))
-                  }} />
-                </label>
+  const addQuestion = () =>
+    setQuestions(prev => [...prev, emptyQ(`q${prev.length + 1}`)])
+
+  const updateQuestion = (id: string, payload: Partial<Question>) => {
+    setQuestions(prev => prev.map(q => (q.id === id ? { ...q, ...payload } : q)))
+  }
+
+  const updateOption = (id: string, index: number, value: string) => {
+    setQuestions(prev =>
+      prev.map(q =>
+        q.id === id
+          ? { ...q, options: q.options.map((opt, idx) => (idx === index ? value : opt)) }
+          : q,
+      ),
+    )
+  }
+
+  return (
+    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+      <Stack spacing={{ xs: 3, md: 4 }}>
+        <Paper
+          elevation={10}
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: 4,
+            backgroundImage:
+              'linear-gradient(140deg, rgba(148, 226, 213, 0.14), transparent 60%), linear-gradient(20deg, rgba(137, 180, 250, 0.1), transparent 55%)',
+          }}
+        >
+          <Stack spacing={{ xs: 3, md: 4 }}>
+            <Box display="flex" flexWrap="wrap" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
+              <Box>
+                <Typography variant="h4" fontWeight={700} gutterBottom sx={{ mb: 0 }}>
+                  BetterKahoots Control Room
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Configure questions, manage players, and launch the show.
+                </Typography>
+              </Box>
+              <Chip
+                label={`${players.length} / 30 players`}
+                color={players.length >= 3 ? 'secondary' : 'default'}
+                variant="outlined"
+                sx={{ fontWeight: 600 }}
+              />
+            </Box>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Session ID"
+                  value={sessionId}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => setSessionId(event.target.value)}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Admin Key"
+                  type="password"
+                  value={adminKey}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => setAdminKey(event.target.value)}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+
+            {players.length > 0 ? (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: { xs: 2, md: 2.5 },
+                  borderRadius: 3,
+                  backgroundColor: alpha(theme.palette.background.paper, 0.65),
+                }}
+              >
+                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                  Lobby
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {players.map(p => (
+                    <Chip key={p.id} label={p.username} sx={{ mb: 1 }} />
+                  ))}
+                </Stack>
+              </Paper>
+            ) : (
+              <Alert severity="info" sx={{ borderRadius: 3 }}>
+                Waiting for players — share the session code to get started.
+              </Alert>
+            )}
+
+            <Divider sx={{ borderColor: 'rgba(148, 163, 184, 0.25)' }} />
+
+            <Stack spacing={2} direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="h5" fontWeight={700}>
+                Questions
+              </Typography>
+              <Button variant="outlined" onClick={addQuestion}>
+                Add Question
+              </Button>
+            </Stack>
+
+            <Stack spacing={{ xs: 2.5, md: 3 }}>
+              {questions.map((q, idx) => (
+                <Paper
+                  key={q.id}
+                  variant="outlined"
+                  sx={{
+                    p: { xs: 2, md: 3 },
+                    borderRadius: 3,
+                    backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                    borderColor: alpha(theme.palette.primary.main, 0.25),
+                  }}
+                >
+                  <Stack spacing={2.5}>
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      Question {idx + 1}
+                    </Typography>
+                    <TextField
+                      label="Prompt"
+                      value={q.text}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) => updateQuestion(q.id, { text: event.target.value })}
+                      fullWidth
+                    />
+                    <Grid container spacing={2}>
+                      {q.options.map((opt, i) => (
+                        <Grid item xs={12} md={6} key={i}>
+                          <TextField
+                            label={`Option ${i + 1}`}
+                            value={opt}
+                            onChange={(event: ChangeEvent<HTMLInputElement>) => updateOption(q.id, i, event.target.value)}
+                            fullWidth
+                          />
+                        </Grid>
+                      ))}
+                    </Grid>
+                    <TextField
+                      label="Correct Option (0-3)"
+                      type="number"
+                      inputProps={{ min: 0, max: 3 }}
+                      value={q.correct_index}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                        updateQuestion(q.id, {
+                          correct_index: Number.parseInt(event.target.value || '0', 10),
+                        })
+                      }
+                      fullWidth
+                    />
+                  </Stack>
+                </Paper>
               ))}
-            </div>
-            <label>Correct Index (0–3)
-              <input className="input" type="number" min={0} max={3}
-                value={q.correct_index} onChange={e => {
-                  const v = parseInt(e.target.value || '0');
-                  setQuestions(s => s.map(qq => qq.id === q.id ? { ...qq, correct_index: v } : qq))
-                }} />
-            </label>
-          </div>
-        ))}
-        <button className="btn" onClick={addQuestion}>+ Add Question</button>
-        <h2>Bonus (Tiebreaker)</h2>
-        <div className="card">
-          <label>Question
-            <input className="input" value={bonus.text}
-              onChange={e => setBonus({ ...bonus, text: e.target.value })} />
-          </label>
-          <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-            {bonus.options.map((opt, i) => (
-              <label key={i}>Option {i + 1}
-                <input className="input" value={opt} onChange={e => {
-                  const v = e.target.value; setBonus(b => ({
-                    ...b, options:
-                      b.options.map((oo, j) => j === i ? v : oo)
-                  }))
-                }} />
-              </label>
-            ))}
-          </div>
-          <label>Correct Index (0–3)
-            <input className="input" type="number" min={0} max={3}
-              value={bonus.correct_index} onChange={e => setBonus(b => ({
-                ...b, correct_index:
-                  parseInt(e.target.value || '0')
-              }))} />
-          </label>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
-          <button className="btn" onClick={saveQuestions}>Save Questions</button>
-          <button className="btn" onClick={onReset}>Reset Session</button>
-          <button className="btn primary" onClick={onStart} disabled={! canStart}>Start Game</button>
-        </div>
-        <p>{status}</p>
-        <p style={{ opacity: 0.8 }}><em>Start disabled until ≥3 players joined
-          and all question fields (including bonus) are filled.</em></p>
-      </div>
-    </div>
+            </Stack>
+
+            <Divider sx={{ borderColor: 'rgba(148, 163, 184, 0.25)' }} />
+
+            <Stack spacing={2.5}>
+              <Typography variant="h5" fontWeight={700}>
+                Bonus Tiebreaker
+              </Typography>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: { xs: 2, md: 3 },
+                  borderRadius: 3,
+                  backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                  borderColor: alpha(theme.palette.secondary.main, 0.3),
+                }}
+              >
+                <Stack spacing={2.5}>
+                  <TextField
+                    label="Bonus Question"
+                    value={bonus.text}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                      setBonus(prev => ({ ...prev, text: event.target.value }))
+                    }
+                    fullWidth
+                  />
+                  <Grid container spacing={2}>
+                    {bonus.options.map((opt, i) => (
+                      <Grid item xs={12} md={6} key={i}>
+                        <TextField
+                          label={`Option ${i + 1}`}
+                          value={opt}
+                          onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                            setBonus(prev => ({
+                              ...prev,
+                              options: prev.options.map((o, idx) => (idx === i ? event.target.value : o)),
+                            }))
+                          }
+                          fullWidth
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                  <TextField
+                    label="Correct Option (0-3)"
+                    type="number"
+                    inputProps={{ min: 0, max: 3 }}
+                    value={bonus.correct_index}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                      setBonus(prev => ({
+                        ...prev,
+                        correct_index: Number.parseInt(event.target.value || '0', 10),
+                      }))
+                    }
+                    fullWidth
+                  />
+                </Stack>
+              </Paper>
+            </Stack>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="flex-end" alignItems={{ xs: 'stretch', sm: 'center' }}>
+              <Button variant="outlined" onClick={saveQuestions}>
+                Save Questions
+              </Button>
+              <Button variant="outlined" color="secondary" onClick={onReset}>
+                Reset Session
+              </Button>
+              <Button variant="contained" color="primary" onClick={onStart} disabled={!canStart}>
+                Start Game
+              </Button>
+            </Stack>
+
+            {status && (
+              <Alert severity={status.tone} sx={{ borderRadius: 3 }}>
+                {status.text}
+              </Alert>
+            )}
+
+            <Typography variant="caption" color="text.secondary">
+              Start unlocks when at least three players have joined and every question — including the bonus — is complete.
+            </Typography>
+          </Stack>
+        </Paper>
+      </Stack>
+    </Container>
   )
 }

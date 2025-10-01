@@ -75,6 +75,5 @@ class EventStore:
         await self.append(session_id, {"type": "session_reset"})
 
 
-
 event_store = EventStore()
 

@@ -30,7 +30,6 @@ export function useEventFeed(
 
   useEffect(() => {
     lastSeqRef.current = null
-
     intervalRef.current = pollIntervalMs
 
     if (!sessionId) return
@@ -54,7 +53,6 @@ export function useEventFeed(
           if (res.ok) {
             const data = await res.json()
             const events: LoggedEvent[] = data.events ?? []
-
             if (events.length) {
               intervalRef.current = pollIntervalMs
             } else {
@@ -63,14 +61,12 @@ export function useEventFeed(
                 intervalRef.current + pollIntervalMs,
               )
             }
-
             for (const evt of events) {
               lastSeqRef.current = evt.seq
               if (evt.payload) {
                 handlerRef.current(evt.payload)
               }
             }
-
           } else {
             intervalRef.current = Math.min(
               pollIntervalMs * MAX_BACKOFF_MULTIPLIER,
@@ -86,7 +82,6 @@ export function useEventFeed(
         }
 
         await sleep(intervalRef.current)
-
       }
     }
 
@@ -94,9 +89,7 @@ export function useEventFeed(
 
     return () => {
       cancelled = true
-
       abortRef.current?.abort()
-
     }
   }, [sessionId, pollIntervalMs])
 }
