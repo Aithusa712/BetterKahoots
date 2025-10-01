@@ -29,6 +29,9 @@ The sections below outline the required configuration.
    - `ADMIN_KEY` – the value used to protect admin routes.
    - `CORS_ORIGINS` – include your SWA hostname (for example `https://<your-app>.azurestaticapps.net`).
    - `CORS_ORIGIN_REGEX` (optional) – override the default regex (`https://.*.azurestaticapps.net`) if you host the frontend on a different domain pattern.
+   - `MONGO_TLS_CA_FILE` (optional) – absolute path to a CA bundle when your Mongo-compatible provider signs certificates with a custom authority (for example AWS DocumentDB).
+   - `MONGO_TLS_ALLOW_INVALID_CERTS` (optional) – set to `true` only if your provider requires bypassing TLS certificate validation.
+
 
 The backend already honours the `PORT` variable and exposes 8000 in the Dockerfile, so no
 further code changes are required for App Service.
@@ -58,6 +61,9 @@ further code changes are required for App Service.
 2. Generate a database user with the necessary permissions and capture the SRV connection string.
 3. Update the backend `MONGO_URI` setting (environment variable or `.env` file) with the Atlas
    connection string. The backend uses TLS by default when presented with an Atlas URI.
+4. If your provider needs a custom CA bundle (such as AWS DocumentDB), set `MONGO_TLS_CA_FILE` to the absolute path of that
+   file and mount it into the container. As a last resort, you can set `MONGO_TLS_ALLOW_INVALID_CERTS=true` to bypass
+   certificate validation, though this is not recommended for production use.
 
 ## Local development
 
