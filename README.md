@@ -29,7 +29,7 @@ The sections below outline the required configuration.
    - `ADMIN_KEY` – the value used to protect admin routes.
    - `CORS_ORIGINS` – include your SWA hostname (for example `https://<your-app>.azurestaticapps.net`).
    - `CORS_ORIGIN_REGEX` (optional) – override the default regex (`https://.*.azurestaticapps.net`) if you host the frontend on a different domain pattern.
-   - `MONGO_TLS_CA_FILE` (optional) – absolute path to a CA bundle when your Mongo-compatible provider signs certificates with a custom authority (for example AWS DocumentDB).
+   - `MONGO_TLS_CA_FILE` (optional) – absolute path to a CA bundle when your Mongo-compatible provider signs certificates with a custom authority (for example AWS DocumentDB). When left unset the backend automatically falls back to the CA bundle shipped with `certifi`, so Atlas and other providers that chain to public roots work without extra configuration.
    - `MONGO_TLS_ALLOW_INVALID_CERTS` (optional) – set to `true` only if your provider requires bypassing TLS certificate validation.
 
 
