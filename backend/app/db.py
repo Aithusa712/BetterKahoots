@@ -1,5 +1,6 @@
 from typing import Optional, Dict, Any
 
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from motor.motor_asyncio import AsyncIOMotorClient
 from functools import lru_cache
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     CORS_ORIGIN_REGEX: Optional[str] = r"https://.*\\.azurestaticapps\\.net"
     MONGO_TLS_CA_FILE: Optional[str] = None
     MONGO_TLS_ALLOW_INVALID_CERTS: bool = False
+
 
 
 @lru_cache
