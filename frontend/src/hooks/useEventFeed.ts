@@ -6,6 +6,7 @@ import type { ServerEvent } from '../types'
 type LoggedEvent = { seq: number; timestamp?: number; payload: ServerEvent }
 
 const DEFAULT_INTERVAL = 1000
+
 const MAX_BACKOFF_MULTIPLIER = 5
 
 async function sleep(ms: number) {
@@ -19,6 +20,7 @@ export function useEventFeed(
 ) {
   const lastSeqRef = useRef<number | null>(null)
   const handlerRef = useRef(onEvent)
+
   const intervalRef = useRef(pollIntervalMs)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -29,6 +31,7 @@ export function useEventFeed(
   useEffect(() => {
     lastSeqRef.current = null
     intervalRef.current = pollIntervalMs
+
     if (!sessionId) return
 
     let cancelled = false
@@ -37,12 +40,15 @@ export function useEventFeed(
       while (!cancelled) {
         const controller = new AbortController()
         abortRef.current = controller
+
         try {
           const params =
             lastSeqRef.current != null ? `?after=${lastSeqRef.current}` : ''
           const res = await fetch(
             `/api/session/${encodeURIComponent(sessionId)}/events${params}`,
+
             { signal: controller.signal },
+
           )
           if (res.ok) {
             const data = await res.json()

@@ -126,7 +126,6 @@ export default function UserPage() {
     }
   }, [])
 
-
   const currentScore = player ? players.find(p => p.id === player.id)?.score ?? 0 : 0
   const isSpectator = finalists && player && !finalists.includes(player.id)
 
@@ -264,7 +263,6 @@ export default function UserPage() {
           </Stack>
         </Paper>
       </Stack>
-
       <Leaderboard
         open={Boolean(player && scoreboard)}
         players={scoreboard ?? []}
