@@ -12,7 +12,6 @@ from .schemas import (
     CreateSessionIn,
     JoinIn,
     PublicSessionOut,
-
     ResetSessionIn,
 
     StartGameIn,
