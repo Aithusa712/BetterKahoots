@@ -26,10 +26,10 @@ jobs:
       - name: Build and push container image to registry
         uses: docker/build-push-action@v3
         with:
-          context: .
+          context: ./backend
           push: true
           tags: index.docker.io/${{ secrets.AZUREAPPSERVICE_CONTAINERUSERNAME_3F90403246264E5FB93E24FD5DADE2E0 }}/kimandrew712/betterkahoots-backend:${{ github.sha }}
-          file: ./Dockerfile
+          file: ./backend/Dockerfile
 
   deploy:
     runs-on: ubuntu-latest
