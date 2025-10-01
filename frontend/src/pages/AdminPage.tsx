@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { createOrGetSession, startGame, upsertQuestions } from '../api'
-import { useSocket } from '../hooks/useSocket'
+import { createOrGetSession, resetSession, startGame, upsertQuestions } from '../api'
+import { useEventFeed } from '../hooks/useEventFeed'
 import type { Player, Question, ServerEvent } from '../types'
 const DEFAULT_SESSION = 'demo'
 function emptyQ(id: string): Question {
@@ -24,7 +24,11 @@ export default function AdminPage() {
       setPlayers(s.players);
     })();
   }, [sessionId]);
-  useSocket(sessionId, (evt: ServerEvent) => {
+  useEventFeed(sessionId, (evt: ServerEvent) => {
+    if (evt.type === 'session_reset') {
+      setPlayers([])
+      return
+    }
     if (evt.type === 'players_update') setPlayers(evt.players)
   })
   const saveQuestions = async () => {
@@ -49,6 +53,15 @@ export default function AdminPage() {
   const onStart = async () => {
     try { await startGame(sessionId, adminKey); setStatus('Game started!') }
     catch { setStatus('Start failed — check admin key and requirements.') }
+  }
+  const onReset = async () => {
+    try {
+      await resetSession(sessionId, adminKey)
+      setPlayers([])
+      setStatus('Session reset.')
+    } catch {
+      setStatus('Reset failed — check admin key.')
+    }
   }
   const addQuestion = () => setQuestions(prev => [...prev, emptyQ('q' +
     (prev.length + 1))])
@@ -129,11 +142,10 @@ export default function AdminPage() {
               }))} />
           </label>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-          <button className="btn" onClick={saveQuestions}>Save Questions</
-          button>
-          <button className="btn primary" onClick={onStart} disabled={!
-            canStart}>Start Game</button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
+          <button className="btn" onClick={saveQuestions}>Save Questions</button>
+          <button className="btn" onClick={onReset}>Reset Session</button>
+          <button className="btn primary" onClick={onStart} disabled={! canStart}>Start Game</button>
         </div>
         <p>{status}</p>
         <p style={{ opacity: 0.8 }}><em>Start disabled until ≥3 players joined

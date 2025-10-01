@@ -23,6 +23,10 @@ class StartGameIn(BaseModel):
     session_id: str
 
 
+class ResetSessionIn(BaseModel):
+    session_id: str
+
+
 class AnswerIn(BaseModel):
     session_id: str
     player_id: str

@@ -1,16 +1,20 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Header, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-import asyncio,json
 from typing import Optional
-from .db import settings, db
-from .game import manager, controller
+
+from .db import db, settings
+from .events import event_store
+from .game import controller
+from .models import Session
 from .schemas import (
-    CreateSessionIn, JoinIn, AdminUpsertQuestionsIn, StartGameIn, AnswerIn,
-    PublicSessionOut
+    AdminUpsertQuestionsIn,
+    AnswerIn,
+    CreateSessionIn,
+    JoinIn,
+    PublicSessionOut,
+    ResetSessionIn,
+    StartGameIn,
 )
-from .models import Session, Question, PublicSessionOut
-from .events import bus
 
 app = FastAPI(title="BetterKahoots API")
 
@@ -24,42 +28,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def _sse_format(event: dict) -> bytes:
-    # SSE expects lines starting with "data:"
-    return f"data: {json.dumps(event)}\n\n".encode("utf-8")
 
 @app.get("/api/session/{session_id}/events")
-async def sse_events(session_id: str, request: Request):
-    """
-    SSE stream; client listens with EventSource.
-    """
-    q = await bus.subscribe(session_id)
-
-    async def event_generator():
-        try:
-            # Immediately send a snapshot so UI can render current state
-            # (Optionally call your existing "create_or_get_session")
-            # session = await get_or_create_session(session_id)
-            # yield _sse_format({"type":"snapshot", "session": PublicSessionOut.from_model(session).dict()})
-            while True:
-                # client disconnected?
-                if await request.is_disconnected():
-                    break
-                try:
-                    item = await asyncio.wait_for(q.get(), timeout=30.0)
-                    yield _sse_format(item)
-                except asyncio.TimeoutError:
-                    # keep-alive comment (prevents proxies from closing)
-                    yield b": keep-alive\n\n"
-        finally:
-            bus.unsubscribe(session_id, q)
-
-    headers = {
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",  # for nginx buffering
-    }
-    return StreamingResponse(event_generator(), media_type="text/event-stream", headers=headers)
+async def list_events(session_id: str, after: int | None = None, limit: int = 200):
+    events = await event_store.list(session_id, after=after, limit=limit)
+    latest_seq = events[-1]["seq"] if events else after
+    return {"events": events, "latest_seq": latest_seq}
 
 
 def require_admin(x_admin_key: Optional[str] = Header(default=None)):
@@ -70,8 +44,11 @@ def require_admin(x_admin_key: Optional[str] = Header(default=None)):
 @app.post("/api/session", response_model=PublicSessionOut)
 async def create_or_get_session(payload: CreateSessionIn):
     sdoc = await db.sessions.find_one({"id": payload.session_id})
+    is_new = sdoc is None
     s = Session(**sdoc) if sdoc else Session(id=payload.session_id)
     await db.sessions.update_one({"id": s.id}, {"$set": s.model_dump()}, upsert=True)
+    if is_new:
+        await event_store.reset(s.id)
     return PublicSessionOut(
         id=s.id,
         state=s.state,
@@ -97,7 +74,10 @@ async def get_session(session_id: str):
 
 @app.post("/api/join")
 async def join(payload: JoinIn):
-    p = await controller.join(payload.session_id, payload.username)
+    try:
+        p = await controller.join(payload.session_id, payload.username)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"player": p.model_dump()}
 
 
@@ -109,7 +89,16 @@ async def upsert_questions(payload: AdminUpsertQuestionsIn, _: None = Depends(re
 
 @app.post("/api/admin/start")
 async def start(payload: StartGameIn, _: None = Depends(require_admin)):
-    await controller.start(payload.session_id)
+    try:
+        await controller.start(payload.session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@app.post("/api/admin/reset")
+async def reset(payload: ResetSessionIn, _: None = Depends(require_admin)):
+    await controller.reset(payload.session_id)
     return {"ok": True}
 
 
@@ -119,11 +108,3 @@ async def answer(payload: AnswerIn):
     return {"accepted": ok}
 
 
-@app.websocket("/ws/{session_id}")
-async def websocket_endpoint(websocket: WebSocket, session_id: str):
-    await manager.connect(session_id, websocket)
-    try:
-        while True:
-            _ = await websocket.receive_text()  # passive; we send server-push events
-    except WebSocketDisconnect:
-        manager.disconnect(session_id, websocket)
