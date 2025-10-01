@@ -88,6 +88,11 @@ async def upsert_questions(payload: AdminUpsertQuestionsIn, _: None = Depends(re
     return {"ok": True}
 
 
+@app.get("/api/admin/verify")
+async def verify(_: None = Depends(require_admin)):
+    return {"ok": True}
+
+
 @app.post("/api/admin/start")
 async def start(payload: StartGameIn, _: None = Depends(require_admin)):
     try:
