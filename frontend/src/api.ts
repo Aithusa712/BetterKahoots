@@ -44,6 +44,18 @@ export async function upsertQuestions(
   return res.json()
 }
 
+export async function verifyAdminKey(adminKey: string) {
+  const res = await fetch(
+    apiUrl('/api/admin/verify'),
+    {
+      method: 'GET',
+      headers: { 'X-Admin-Key': adminKey },
+    },
+  )
+  if (!res.ok) throw new Error('Invalid admin key')
+  return res.json()
+}
+
 export async function startGame(session_id: string, adminKey: string) {
   const res = await fetch(
     apiUrl('/api/admin/start'),

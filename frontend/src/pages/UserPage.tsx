@@ -5,6 +5,10 @@ import {
   Button,
   Chip,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Paper,
   Stack,
@@ -12,12 +16,14 @@ import {
   Typography,
 } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
-import { createOrGetSession, join, submitAnswer } from '../api'
+import { useNavigate } from 'react-router-dom'
+import { createOrGetSession, join, submitAnswer, verifyAdminKey } from '../api'
 import { useEventFeed } from '../hooks/useEventFeed'
 import TimerBar from '../components/TimerBar'
 import AnswerButtons from '../components/AnswerButtons'
 import Leaderboard from '../components/Leaderboard'
 import type { ServerEvent, Player, Question } from '../types'
+import { ADMIN_KEY_STORAGE_KEY } from '../constants'
 
 
 const DEFAULT_SESSION = 'demo'
@@ -25,6 +31,7 @@ const DEFAULT_SESSION = 'demo'
 
 export default function UserPage() {
   const theme = useTheme()
+  const navigate = useNavigate()
   const [sessionId, setSessionId] = useState<string>(DEFAULT_SESSION)
   const [username, setUsername] = useState('')
   const [player, setPlayer] = useState<Player | null>(null)
@@ -36,6 +43,10 @@ export default function UserPage() {
   const [finalists, setFinalists] = useState<string[] | null>(null)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const scoreboardTimeoutRef = useRef<number | null>(null)
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false)
+  const [adminKeyInput, setAdminKeyInput] = useState('')
+  const [adminError, setAdminError] = useState<string | null>(null)
+  const [adminSubmitting, setAdminSubmitting] = useState(false)
 
 
   useEffect(() => { createOrGetSession(sessionId) }, [sessionId])
@@ -117,6 +128,41 @@ export default function UserPage() {
     try { await submitAnswer(sessionId, player.id, question.id, i) } catch { }
   }
 
+  const openAdminDialog = () => {
+    if (typeof window !== 'undefined') {
+      setAdminKeyInput(localStorage.getItem(ADMIN_KEY_STORAGE_KEY) ?? '')
+    }
+    setAdminError(null)
+    setAdminDialogOpen(true)
+  }
+
+  const closeAdminDialog = () => {
+    setAdminSubmitting(false)
+    setAdminDialogOpen(false)
+  }
+
+  const handleAdminSubmit = async () => {
+    const trimmedKey = adminKeyInput.trim()
+    if (!trimmedKey) {
+      setAdminError('Enter the secret key to continue.')
+      return
+    }
+    setAdminSubmitting(true)
+    setAdminError(null)
+    try {
+      await verifyAdminKey(trimmedKey)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(ADMIN_KEY_STORAGE_KEY, trimmedKey)
+      }
+      setAdminDialogOpen(false)
+      navigate('/admin')
+    } catch {
+      setAdminError('That key didn\'t work. Try again.')
+    } finally {
+      setAdminSubmitting(false)
+    }
+  }
+
   useEffect(() => {
     return () => {
       if (scoreboardTimeoutRef.current) {
@@ -152,14 +198,19 @@ export default function UserPage() {
                   Session ID · {sessionId.toUpperCase()}
                 </Typography>
               </Box>
-              {player && (
-                <Chip
-                  label={`Players: ${players.length}`}
-                  color="secondary"
-                  variant="outlined"
-                  sx={{ fontWeight: 600 }}
-                />
-              )}
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                {player && (
+                  <Chip
+                    label={`Players: ${players.length}`}
+                    color="secondary"
+                    variant="outlined"
+                    sx={{ fontWeight: 600 }}
+                  />
+                )}
+                <Button variant="outlined" onClick={openAdminDialog}>
+                  Admin
+                </Button>
+              </Stack>
             </Box>
 
             {!player ? (
@@ -268,6 +319,40 @@ export default function UserPage() {
         players={scoreboard ?? []}
         onClose={() => setScoreboard(null)}
       />
+      <Dialog open={adminDialogOpen} onClose={closeAdminDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Admin Access</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Enter the secret admin key to manage the game.
+            </Typography>
+            <TextField
+              label="Admin Key"
+              type="password"
+              value={adminKeyInput}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setAdminKeyInput(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  handleAdminSubmit()
+                }
+              }}
+              fullWidth
+              autoFocus
+              disabled={adminSubmitting}
+            />
+            {adminError && <Alert severity="error">{adminError}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button onClick={closeAdminDialog} disabled={adminSubmitting}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleAdminSubmit} disabled={adminSubmitting}>
+            {adminSubmitting ? 'Verifying…' : 'Continue'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   )
 }
