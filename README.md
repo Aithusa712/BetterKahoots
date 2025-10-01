@@ -1,4 +1,3 @@
-
 # BetterKahoots
 
 ## Deployment overview
