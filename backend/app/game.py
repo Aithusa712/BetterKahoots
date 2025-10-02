@@ -10,6 +10,8 @@ from .utils import now_ts, sort_leaderboard
 
 CORRECT_BASE_POINTS = 10
 BONUS_POINTS = [5, 4, 3, 2, 1]
+LEADERBOARD_WAIT_SECONDS = 1.5
+LEADERBOARD_DISPLAY_SECONDS = 5
 
 
 class GameController:
@@ -237,7 +239,18 @@ class GameController:
             },
         )
 
-        # then scoreboard
+        # allow clients to highlight the correct option before showing the leaderboard
+        await asyncio.sleep(2)
+
+        await event_store.append(
+            session_id,
+            {
+                "type": "leaderboard_pending",
+                "message": "Waiting for other players…",
+            },
+        )
+
+        await asyncio.sleep(LEADERBOARD_WAIT_SECONDS)
 
         players_data = [p.model_dump() for p in s.players]
         leaderboard = sort_leaderboard(players_data)
@@ -248,7 +261,7 @@ class GameController:
             session_id,
             {
                 "type": "scoreboard",
-                "duration": 5,
+                "duration": LEADERBOARD_DISPLAY_SECONDS,
                 "leaderboard": leaderboard,
             },
         )

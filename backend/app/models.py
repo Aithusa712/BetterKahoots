@@ -25,6 +25,7 @@ class Question(BaseModel):
     text: str
     options: List[str]
     correct_index: AnswerIndex
+    image_url: Optional[str] = None
 
 
 class SessionState(str):
