@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from azure.core.credentials import TokenCredential
+
 from azure.core.exceptions import HttpResponseError, ResourceExistsError
 from azure.storage.blob import (
     BlobSasPermissions,
@@ -91,6 +92,7 @@ async def upload_question_image(
     if _container_is_private:
         sas_url = await _build_private_blob_url(service, container_name, blob_name, blob_client.url)
         return sas_url
+
 
     return blob_client.url
 

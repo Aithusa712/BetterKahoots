@@ -53,6 +53,7 @@ class _FakeBlobService:
         self.credential = credential if credential is not None else object()
         self._user_delegation_key = user_delegation_key
 
+
     def get_container_client(self, container_name: str) -> _FakeContainerClient:
         self.container_name = container_name
         return self._container_client
@@ -62,6 +63,7 @@ class _FakeBlobService:
         if self._user_delegation_key is None:
             raise RuntimeError("user delegation key not configured")
         return self._user_delegation_key
+
 
 
 class UploadQuestionImageTests(IsolatedAsyncioTestCase):
@@ -154,4 +156,5 @@ class UploadQuestionImageTests(IsolatedAsyncioTestCase):
         self.assertIn("expiry", kwargs)
         start, expiry = service.user_delegation_key_args
         self.assertLessEqual(start, expiry)
+
 
