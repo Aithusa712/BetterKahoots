@@ -288,7 +288,10 @@ export default function AdminPage() {
                         borderRadius: 3,
                         border: `1px dashed ${alpha(theme.palette.primary.main, 0.4)}`,
                         backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                        minHeight: 160,
+                        aspectRatio: '1',
+                        width: '100%',
+                        maxWidth: 420,
+                        mx: 'auto',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -300,7 +303,12 @@ export default function AdminPage() {
                           component="img"
                           src={q.image_url}
                           alt={`Question ${idx + 1} visual`}
-                          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            display: 'block',
+                          }}
                         />
                       ) : (
                         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', px: 2 }}>
@@ -394,7 +402,10 @@ export default function AdminPage() {
                       borderRadius: 3,
                       border: `1px dashed ${alpha(theme.palette.secondary.main, 0.4)}`,
                       backgroundColor: alpha(theme.palette.secondary.main, 0.08),
-                      minHeight: 160,
+                      aspectRatio: '1',
+                      width: '100%',
+                      maxWidth: 420,
+                      mx: 'auto',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -406,7 +417,12 @@ export default function AdminPage() {
                         component="img"
                         src={bonus.image_url}
                         alt="Bonus question visual"
-                        sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
                       />
                     ) : (
                       <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', px: 2 }}>
