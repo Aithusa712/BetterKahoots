@@ -389,7 +389,9 @@ export default function UserPage() {
                         className="question-visual"
                         sx={{
                           width: '100%',
-                          maxHeight: { xs: 220, md: 260 },
+                          maxWidth: { xs: 440, md: 520 },
+                          mx: 'auto',
+                          aspectRatio: '1',
                           borderRadius: 3,
                           overflow: 'hidden',
                           boxShadow: `0 18px 40px -20px ${alpha(theme.palette.primary.main, 0.8)}`,
