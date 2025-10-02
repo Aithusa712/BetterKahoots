@@ -27,6 +27,11 @@ def get_settings() -> Settings:
 settings = get_settings()
 
 
+class ReturnDocument(str, Enum):
+    BEFORE = "before"
+    AFTER = "after"
+
+
 class InMemoryCursor:
     def __init__(self, collection: "InMemoryCollection", query: Dict[str, Any]):
         self._collection = collection
