@@ -1,0 +1,2 @@
+"""BetterKahoots backend application package."""
+
