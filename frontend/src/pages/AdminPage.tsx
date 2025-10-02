@@ -255,9 +255,6 @@ export default function AdminPage() {
               <Typography variant="h5" fontWeight={700}>
                 Questions
               </Typography>
-              <Button variant="outlined" onClick={addQuestion}>
-                Add Question
-              </Button>
             </Stack>
 
             <Stack spacing={{ xs: 2.5, md: 3 }}>
@@ -292,6 +289,7 @@ export default function AdminPage() {
                         width: '100%',
                         maxWidth: 420,
                         mx: 'auto',
+                        alignSelf: 'center',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -307,6 +305,7 @@ export default function AdminPage() {
                             width: '100%',
                             height: '100%',
                             objectFit: 'cover',
+                            objectPosition: 'center',
                             display: 'block',
                           }}
                         />
@@ -370,6 +369,11 @@ export default function AdminPage() {
                   </Stack>
                 </Paper>
               ))}
+              <Box textAlign="center">
+                <Button variant="outlined" onClick={addQuestion}>
+                  Add Question
+                </Button>
+              </Box>
             </Stack>
 
             <Divider sx={{ borderColor: 'rgba(148, 163, 184, 0.25)' }} />
@@ -406,6 +410,7 @@ export default function AdminPage() {
                       width: '100%',
                       maxWidth: 420,
                       mx: 'auto',
+                      alignSelf: 'center',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -421,6 +426,7 @@ export default function AdminPage() {
                           width: '100%',
                           height: '100%',
                           objectFit: 'cover',
+                          objectPosition: 'center',
                           display: 'block',
                         }}
                       />
