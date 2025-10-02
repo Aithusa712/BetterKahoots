@@ -10,6 +10,9 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Backdrop,
+  CircularProgress,
+  Fade,
   Paper,
   Stack,
   TextField,
@@ -29,6 +32,16 @@ import { ADMIN_KEY_STORAGE_KEY } from '../constants'
 const DEFAULT_SESSION = 'demo'
 
 
+type ScoreboardState = {
+  players: Player[]
+  duration: number
+  startedAt: number
+  title: string
+  subtitle?: string
+  autoClose: boolean
+}
+
+
 export default function UserPage() {
   const theme = useTheme()
   const navigate = useNavigate()
@@ -39,10 +52,14 @@ export default function UserPage() {
   const [question, setQuestion] = useState<Question | null>(null)
   const [deadlineTs, setDeadlineTs] = useState<number | null>(null)
   const [revealIndex, setRevealIndex] = useState<number | null>(null)
-  const [scoreboard, setScoreboard] = useState<Player[] | null>(null)
+  const [scoreboardState, setScoreboardState] = useState<ScoreboardState | null>(null)
   const [finalists, setFinalists] = useState<string[] | null>(null)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const [leaderboardCountdown, setLeaderboardCountdown] = useState<number>(0)
+  const [leaderboardPendingMessage, setLeaderboardPendingMessage] = useState<string | null>(null)
+  const [correctAnswerMessage, setCorrectAnswerMessage] = useState<string | null>(null)
   const scoreboardTimeoutRef = useRef<number | null>(null)
+  const correctAnswerTimerRef = useRef<number | null>(null)
   const [adminDialogOpen, setAdminDialogOpen] = useState(false)
   const [adminKeyInput, setAdminKeyInput] = useState('')
   const [adminError, setAdminError] = useState<string | null>(null)
@@ -58,12 +75,19 @@ export default function UserPage() {
       setQuestion(null)
       setDeadlineTs(null)
       setRevealIndex(null)
-      setScoreboard(null)
+      setScoreboardState(null)
       setFinalists(null)
       setSelectedIndex(null)
+      setLeaderboardCountdown(0)
+      setLeaderboardPendingMessage(null)
+      setCorrectAnswerMessage(null)
       if (scoreboardTimeoutRef.current) {
         window.clearTimeout(scoreboardTimeoutRef.current)
         scoreboardTimeoutRef.current = null
+      }
+      if (correctAnswerTimerRef.current) {
+        window.clearTimeout(correctAnswerTimerRef.current)
+        correctAnswerTimerRef.current = null
       }
       return
     }
@@ -72,31 +96,72 @@ export default function UserPage() {
       setQuestion(evt.question)
       setDeadlineTs(evt.deadline_ts)
       setRevealIndex(null)
-      setScoreboard(null)
+      setScoreboardState(null)
       setSelectedIndex(null)
+      setLeaderboardCountdown(0)
+      setLeaderboardPendingMessage(null)
+      setCorrectAnswerMessage(null)
       if (scoreboardTimeoutRef.current) {
         window.clearTimeout(scoreboardTimeoutRef.current)
         scoreboardTimeoutRef.current = null
+      }
+      if (correctAnswerTimerRef.current) {
+        window.clearTimeout(correctAnswerTimerRef.current)
+        correctAnswerTimerRef.current = null
       }
       if (!evt.is_bonus) setFinalists(null)
     }
     if (evt.type === 'reveal') {
       setRevealIndex(evt.correct_index)
+      if (correctAnswerTimerRef.current) {
+        window.clearTimeout(correctAnswerTimerRef.current)
+      }
+      const answerText = question?.options?.[evt.correct_index]
+      setCorrectAnswerMessage(
+        typeof answerText === 'string'
+          ? `Correct answer: ${answerText}`
+          : 'Time is up!'
+      )
+      correctAnswerTimerRef.current = window.setTimeout(() => {
+        setCorrectAnswerMessage(null)
+        correctAnswerTimerRef.current = null
+      }, 2000)
+    }
+    if (evt.type === 'leaderboard_pending') {
+      setLeaderboardPendingMessage(evt.message)
     }
     if (evt.type === 'scoreboard') {
-      setScoreboard(evt.leaderboard)
+      setLeaderboardPendingMessage(null)
+      const startedAt = Date.now()
+      setScoreboardState({
+        players: evt.leaderboard,
+        duration: evt.duration,
+        startedAt,
+        title: 'Leaderboard',
+        subtitle: 'Round Results',
+        autoClose: true,
+      })
       setPlayers(evt.leaderboard)
       if (scoreboardTimeoutRef.current) {
         window.clearTimeout(scoreboardTimeoutRef.current)
       }
       scoreboardTimeoutRef.current = window.setTimeout(() => {
-        setScoreboard(null)
+        setScoreboardState(null)
+        setLeaderboardCountdown(0)
         scoreboardTimeoutRef.current = null
       }, evt.duration * 1000)
     }
     if (evt.type === 'tiebreak_start') setFinalists(evt.finalist_ids)
     if (evt.type === 'game_over') {
-      setScoreboard(evt.leaderboard)
+      setLeaderboardPendingMessage(null)
+      setScoreboardState({
+        players: evt.leaderboard,
+        duration: 0,
+        startedAt: Date.now(),
+        title: 'Game Over',
+        subtitle: 'Results:',
+        autoClose: false,
+      })
       setPlayers(evt.leaderboard)
       setSelectedIndex(null)
       if (scoreboardTimeoutRef.current) {
@@ -108,11 +173,41 @@ export default function UserPage() {
   useEventFeed(sessionId, onEvent)
 
 
+  useEffect(() => {
+    if (!scoreboardState || scoreboardState.duration <= 0) {
+      setLeaderboardCountdown(0)
+      return
+    }
+
+    const endTime = scoreboardState.startedAt + scoreboardState.duration * 1000
+
+    const updateCountdown = () => {
+      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000))
+      setLeaderboardCountdown(remaining)
+      return remaining
+    }
+
+    updateCountdown()
+
+    const interval = window.setInterval(() => {
+      const remaining = updateCountdown()
+      if (remaining <= 0) {
+        window.clearInterval(interval)
+      }
+    }, 200)
+
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [scoreboardState])
+
+
   const canAnswer = useMemo(() => {
     if (!question || !deadlineTs) return false
     if (finalists && !finalists.includes(player?.id || '')) return false
-    return Date.now() < deadlineTs * 1000 && revealIndex === null
-  }, [question, deadlineTs, revealIndex, finalists, player])
+    const beforeDeadline = Date.now() < deadlineTs * 1000
+    return beforeDeadline && revealIndex === null && selectedIndex === null
+  }, [question, deadlineTs, revealIndex, finalists, player, selectedIndex])
 
 
   const doJoin = async () => {
@@ -126,6 +221,15 @@ export default function UserPage() {
     if (!question || !player || !canAnswer) return
     setSelectedIndex(i)
     try { await submitAnswer(sessionId, player.id, question.id, i) } catch { }
+  }
+
+  const closeScoreboard = () => {
+    if (scoreboardTimeoutRef.current) {
+      window.clearTimeout(scoreboardTimeoutRef.current)
+      scoreboardTimeoutRef.current = null
+    }
+    setScoreboardState(null)
+    setLeaderboardCountdown(0)
   }
 
   const openAdminDialog = () => {
@@ -169,6 +273,10 @@ export default function UserPage() {
         window.clearTimeout(scoreboardTimeoutRef.current)
         scoreboardTimeoutRef.current = null
       }
+      if (correctAnswerTimerRef.current) {
+        window.clearTimeout(correctAnswerTimerRef.current)
+        correctAnswerTimerRef.current = null
+      }
     }
   }, [])
 
@@ -181,6 +289,7 @@ export default function UserPage() {
       <Stack spacing={{ xs: 3, md: 4 }}>
         <Paper
           elevation={8}
+          className="glass-card"
           sx={{
             p: { xs: 3, md: 4 },
             borderRadius: 4,
@@ -273,8 +382,28 @@ export default function UserPage() {
                 <Divider sx={{ borderColor: 'rgba(148, 163, 184, 0.2)' }} />
 
                 {question ? (
-                  <Stack spacing={{ xs: 2, md: 3 }}>
+                  <Stack spacing={{ xs: 2, md: 3 }} className="question-stage">
                     {deadlineTs && <TimerBar deadlineTs={deadlineTs} />}
+                    {question.image_url && (
+                      <Box
+                        className="question-visual"
+                        sx={{
+                          width: '100%',
+                          maxHeight: { xs: 220, md: 260 },
+                          borderRadius: 3,
+                          overflow: 'hidden',
+                          boxShadow: `0 18px 40px -20px ${alpha(theme.palette.primary.main, 0.8)}`,
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.35)}`,
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={question.image_url}
+                          alt="Question visual"
+                          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                      </Box>
+                    )}
                     <Typography variant="h5" fontWeight={700}>
                       {question.text}
                     </Typography>
@@ -290,6 +419,15 @@ export default function UserPage() {
                       selectedIndex={selectedIndex}
                       onPick={pick}
                     />
+                    <Fade in={Boolean(correctAnswerMessage)} timeout={{ enter: 200, exit: 200 }}>
+                      <Box>
+                        {correctAnswerMessage && (
+                          <Alert severity="success" sx={{ borderRadius: 3 }}>
+                            {correctAnswerMessage}
+                          </Alert>
+                        )}
+                      </Box>
+                    </Fade>
                   </Stack>
                 ) : (
                   <Box
@@ -315,10 +453,31 @@ export default function UserPage() {
         </Paper>
       </Stack>
       <Leaderboard
-        open={Boolean(player && scoreboard)}
-        players={scoreboard ?? []}
-        onClose={() => setScoreboard(null)}
+        open={Boolean(player && scoreboardState)}
+        players={scoreboardState?.players ?? []}
+        title={scoreboardState?.title}
+        subtitle={scoreboardState?.subtitle}
+        countdownSeconds={scoreboardState?.autoClose ? leaderboardCountdown : undefined}
+        onClose={closeScoreboard}
       />
+      <Backdrop
+        open={Boolean(leaderboardPendingMessage)}
+        sx={{
+          color: '#fff',
+          zIndex: theme.zIndex.modal - 1,
+          backdropFilter: 'blur(4px)',
+          flexDirection: 'column',
+          gap: 2,
+        }}
+      >
+        <CircularProgress color="inherit" thickness={4} />
+        <Typography variant="h6" fontWeight={600}>
+          {leaderboardPendingMessage ?? 'Preparing leaderboard…'}
+        </Typography>
+        <Typography variant="body2" color="rgba(255,255,255,0.7)">
+          Waiting for other players
+        </Typography>
+      </Backdrop>
       <Dialog open={adminDialogOpen} onClose={closeAdminDialog} maxWidth="xs" fullWidth>
         <DialogTitle>Admin Access</DialogTitle>
         <DialogContent>

@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
@@ -16,6 +16,7 @@ from .schemas import (
 
     StartGameIn,
 )
+from .storage import upload_question_image as store_question_image
 
 app = FastAPI(title="BetterKahoots API")
 
@@ -88,6 +89,27 @@ async def join(payload: JoinIn):
 async def upsert_questions(payload: AdminUpsertQuestionsIn, _: None = Depends(require_admin)):
     await controller.set_questions(payload.session_id, payload.questions, payload.bonus_question)
     return {"ok": True}
+
+
+@app.post("/api/admin/question-image")
+async def upload_question_image(
+    session_id: str = Form(...),
+    question_id: str = Form(...),
+    file: UploadFile = File(...),
+    _: None = Depends(require_admin),
+):
+    if not settings.AZURE_STORAGE_CONNECTION_STRING:
+        raise HTTPException(status_code=500, detail="Image storage is not configured")
+
+    data = await file.read()
+    try:
+        url = await store_question_image(session_id, question_id, file.filename, data, file.content_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to upload image") from exc
+
+    return {"url": url}
 
 
 @app.get("/api/admin/verify")

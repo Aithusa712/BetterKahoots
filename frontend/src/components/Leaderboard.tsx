@@ -17,10 +17,16 @@ import type { Player } from '../types'
 export default function Leaderboard({
   open,
   players,
+  title = 'Leaderboard',
+  subtitle,
+  countdownSeconds,
   onClose,
 }: {
   open: boolean
   players: Player[]
+  title?: string
+  subtitle?: string
+  countdownSeconds?: number
   onClose?: () => void
 }) {
   const theme = useTheme()
@@ -34,6 +40,7 @@ export default function Leaderboard({
       maxWidth="sm"
       fullWidth
       PaperProps={{
+        className: 'glass-card',
         sx: {
           bgcolor: 'background.paper',
           borderRadius: fullScreen ? 0 : 4,
@@ -43,10 +50,22 @@ export default function Leaderboard({
         },
       }}
     >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 2 }}>
-        <Typography variant="h5" fontWeight={700}>
-          Leaderboard
-        </Typography>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 2, gap: 2 }}>
+        <Box>
+          <Typography variant="h5" fontWeight={700}>
+            {title}
+          </Typography>
+          {subtitle && (
+            <Typography variant="subtitle2" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1, mt: 0.5 }}>
+              {subtitle}
+            </Typography>
+          )}
+        </Box>
+        {countdownSeconds !== undefined && countdownSeconds > 0 && (
+          <Typography variant="body2" color="text.secondary" fontWeight={600}>
+            {countdownSeconds}s
+          </Typography>
+        )}
         {onClose && (
           <IconButton onClick={onClose} edge="end" size="small" sx={{ color: 'text.secondary' }}>
             ×

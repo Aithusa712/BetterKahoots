@@ -44,6 +44,27 @@ export async function upsertQuestions(
   return res.json()
 }
 
+export async function uploadQuestionImage(
+  session_id: string,
+  question_id: string,
+  file: File,
+  adminKey: string,
+) {
+  const form = new FormData()
+  form.append('session_id', session_id)
+  form.append('question_id', question_id)
+  form.append('file', file)
+
+  const res = await fetch(apiUrl('/api/admin/question-image'), {
+    method: 'POST',
+    headers: { 'X-Admin-Key': adminKey },
+    body: form,
+  })
+
+  if (!res.ok) throw new Error('Failed to upload image')
+  return res.json()
+}
+
 export async function verifyAdminKey(adminKey: string) {
   const res = await fetch(
     apiUrl('/api/admin/verify'),
