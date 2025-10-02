@@ -2,32 +2,21 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import logging
+from enum import Enum
+from functools import lru_cache
 from typing import Any, Dict, Iterator, List, Optional
 
-try:
-    import certifi
-except ImportError:  # pragma: no cover - fallback when certifi is not installed
-    certifi = None
-
-from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pymongo import MongoClient
-from pymongo import ReturnDocument
-from pymongo.errors import PyMongoError
-from functools import lru_cache
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    MONGO_URI: str = "mongodb://localhost:27017"
-    MONGO_DB: str = "betterkahoots"
     ADMIN_KEY: str = "change-me"
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8080"
     CORS_ORIGIN_REGEX: Optional[str] = r"https://.*\\.azurestaticapps\\.net"
-    MONGO_TLS_CA_FILE: Optional[str] = None
-    MONGO_TLS_ALLOW_INVALID_CERTS: bool = False
+    AZURE_STORAGE_CONNECTION_STRING: Optional[str] = None
+    AZURE_STORAGE_CONTAINER: str = "question-images"
 
 
 @lru_cache
@@ -36,27 +25,6 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-
-
-def _client_kwargs(settings: Settings) -> Dict[str, Any]:
-    kwargs: Dict[str, Any] = {}
-    if settings.MONGO_TLS_CA_FILE:
-        kwargs["tlsCAFile"] = settings.MONGO_TLS_CA_FILE
-    elif certifi is not None:
-        kwargs["tlsCAFile"] = certifi.where()
-
-    if settings.MONGO_TLS_ALLOW_INVALID_CERTS:
-        kwargs["tlsAllowInvalidCertificates"] = settings.MONGO_TLS_ALLOW_INVALID_CERTS
-    return kwargs
-
-
-def _sync_client_kwargs(settings: Settings) -> Dict[str, Any]:
-    kwargs = _client_kwargs(settings).copy()
-    kwargs.setdefault("serverSelectionTimeoutMS", 2000)
-    return kwargs
-
-
-logger = logging.getLogger(__name__)
 
 
 class InMemoryCursor:
@@ -150,7 +118,7 @@ class InMemoryCollection:
         update: Dict[str, Any],
         *,
         upsert: bool = False,
-        return_document: ReturnDocument = ReturnDocument.BEFORE,
+        return_document: "ReturnDocument" = ReturnDocument.BEFORE,
     ) -> Optional[Dict[str, Any]]:
         async with self._lock:
             for idx, doc in enumerate(self._docs):
@@ -164,7 +132,9 @@ class InMemoryCollection:
                 new_doc = copy.deepcopy(query)
                 new_doc = self._apply_update(new_doc, update)
                 self._docs.append(new_doc)
-                return copy.deepcopy(new_doc if return_document == ReturnDocument.AFTER else None)
+                if return_document == ReturnDocument.AFTER:
+                    return copy.deepcopy(new_doc)
+                return None
 
         return None
 
@@ -196,6 +166,11 @@ class InMemoryCollection:
         return True
 
 
+class ReturnDocument(str, Enum):
+    BEFORE = "before"
+    AFTER = "after"
+
+
 class InMemoryDatabase:
     def __init__(self):
         self.sessions = InMemoryCollection()
@@ -204,22 +179,5 @@ class InMemoryDatabase:
         self.session_events = InMemoryCollection()
 
 
-def _can_connect(settings: Settings) -> bool:
-    kwargs = _sync_client_kwargs(settings)
-    try:
-        client = MongoClient(settings.MONGO_URI, **kwargs)
-        client.admin.command("ping")
-        client.close()
-        return True
-    except PyMongoError as exc:  # pragma: no cover - network dependent
-        logger.warning("MongoDB connection failed, falling back to in-memory store: %s", exc, exc_info=True)
-        return False
-
-
-if _can_connect(settings):
-    client = AsyncIOMotorClient(settings.MONGO_URI, **_client_kwargs(settings))
-    db: Any = client[settings.MONGO_DB]
-else:
-    client = None
-    db = InMemoryDatabase()
+db: Any = InMemoryDatabase()
 
