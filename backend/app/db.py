@@ -171,6 +171,11 @@ class InMemoryCollection:
         return True
 
 
+class ReturnDocument(str, Enum):
+    BEFORE = "before"
+    AFTER = "after"
+
+
 class InMemoryDatabase:
     def __init__(self):
         self.sessions = InMemoryCollection()
