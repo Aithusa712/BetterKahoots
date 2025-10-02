@@ -255,9 +255,6 @@ export default function AdminPage() {
               <Typography variant="h5" fontWeight={700}>
                 Questions
               </Typography>
-              <Button variant="outlined" onClick={addQuestion}>
-                Add Question
-              </Button>
             </Stack>
 
             <Stack spacing={{ xs: 2.5, md: 3 }}>
@@ -288,7 +285,11 @@ export default function AdminPage() {
                         borderRadius: 3,
                         border: `1px dashed ${alpha(theme.palette.primary.main, 0.4)}`,
                         backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                        minHeight: 160,
+                        aspectRatio: '1',
+                        width: '100%',
+                        maxWidth: 420,
+                        mx: 'auto',
+                        alignSelf: 'center',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -300,7 +301,13 @@ export default function AdminPage() {
                           component="img"
                           src={q.image_url}
                           alt={`Question ${idx + 1} visual`}
-                          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            objectPosition: 'center',
+                            display: 'block',
+                          }}
                         />
                       ) : (
                         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', px: 2 }}>
@@ -362,6 +369,11 @@ export default function AdminPage() {
                   </Stack>
                 </Paper>
               ))}
+              <Box textAlign="center">
+                <Button variant="outlined" onClick={addQuestion}>
+                  Add Question
+                </Button>
+              </Box>
             </Stack>
 
             <Divider sx={{ borderColor: 'rgba(148, 163, 184, 0.25)' }} />
@@ -394,7 +406,11 @@ export default function AdminPage() {
                       borderRadius: 3,
                       border: `1px dashed ${alpha(theme.palette.secondary.main, 0.4)}`,
                       backgroundColor: alpha(theme.palette.secondary.main, 0.08),
-                      minHeight: 160,
+                      aspectRatio: '1',
+                      width: '100%',
+                      maxWidth: 420,
+                      mx: 'auto',
+                      alignSelf: 'center',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -406,7 +422,13 @@ export default function AdminPage() {
                         component="img"
                         src={bonus.image_url}
                         alt="Bonus question visual"
-                        sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          objectPosition: 'center',
+                          display: 'block',
+                        }}
                       />
                     ) : (
                       <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', px: 2 }}>

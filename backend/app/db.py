@@ -6,6 +6,7 @@ from enum import Enum
 from functools import lru_cache
 from typing import Any, Dict, Iterator, List, Optional
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,8 +16,20 @@ class Settings(BaseSettings):
     ADMIN_KEY: str = "change-me"
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8080"
     CORS_ORIGIN_REGEX: Optional[str] = r"https://.*\\.azurestaticapps\\.net"
-    AZURE_STORAGE_CONNECTION_STRING: Optional[str] = None
-    AZURE_STORAGE_CONTAINER: str = "question-images"
+    AZURE_STORAGE_CONNECTION_STRING: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AZURE_STORAGE_CONNECTION_STRING",
+            "BLOB_CONNECTION_STRING",
+        ),
+    )
+    AZURE_STORAGE_CONTAINER: str = Field(
+        default="question-images",
+        validation_alias=AliasChoices(
+            "AZURE_STORAGE_CONTAINER",
+            "BLOB_CONTAINER_NAME",
+        ),
+    )
 
 
 @lru_cache

@@ -382,14 +382,24 @@ export default function UserPage() {
                 <Divider sx={{ borderColor: 'rgba(148, 163, 184, 0.2)' }} />
 
                 {question ? (
-                  <Stack spacing={{ xs: 2, md: 3 }} className="question-stage">
-                    {deadlineTs && <TimerBar deadlineTs={deadlineTs} />}
+                  <Stack
+                    spacing={{ xs: 2, md: 3 }}
+                    className="question-stage"
+                    sx={{ alignItems: 'center' }}
+                  >
+                    {deadlineTs && (
+                      <Box sx={{ width: '100%' }}>
+                        <TimerBar deadlineTs={deadlineTs} />
+                      </Box>
+                    )}
                     {question.image_url && (
                       <Box
                         className="question-visual"
                         sx={{
                           width: '100%',
-                          maxHeight: { xs: 220, md: 260 },
+                          maxWidth: { xs: 440, md: 520 },
+                          mx: 'auto',
+                          aspectRatio: '1',
                           borderRadius: 3,
                           overflow: 'hidden',
                           boxShadow: `0 18px 40px -20px ${alpha(theme.palette.primary.main, 0.8)}`,
@@ -400,27 +410,35 @@ export default function UserPage() {
                           component="img"
                           src={question.image_url}
                           alt="Question visual"
-                          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            objectPosition: 'center',
+                            display: 'block',
+                          }}
                         />
                       </Box>
                     )}
-                    <Typography variant="h5" fontWeight={700}>
+                    <Typography variant="h5" fontWeight={700} textAlign="center">
                       {question.text}
                     </Typography>
                     {finalists && !finalists.includes(player.id) && (
-                      <Alert severity="info">
+                      <Alert severity="info" sx={{ width: '100%', alignSelf: 'center' }}>
                         Only finalists can answer the bonus question. Cheer them on!
                       </Alert>
                     )}
-                    <AnswerButtons
-                      options={question.options}
-                      locked={!canAnswer}
-                      revealIndex={revealIndex}
-                      selectedIndex={selectedIndex}
-                      onPick={pick}
-                    />
+                    <Box sx={{ width: '100%' }}>
+                      <AnswerButtons
+                        options={question.options}
+                        locked={!canAnswer}
+                        revealIndex={revealIndex}
+                        selectedIndex={selectedIndex}
+                        onPick={pick}
+                      />
+                    </Box>
                     <Fade in={Boolean(correctAnswerMessage)} timeout={{ enter: 200, exit: 200 }}>
-                      <Box>
+                      <Box sx={{ width: '100%' }}>
                         {correctAnswerMessage && (
                           <Alert severity="success" sx={{ borderRadius: 3 }}>
                             {correctAnswerMessage}
